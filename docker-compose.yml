@@ -1,0 +1,59 @@
+version: '3.4'
+
+services:
+  erpmssql:
+    container_name: erpmssql
+    hostname: erpmssql
+    image: mcr.microsoft.com/mssql/server:2019-CU15-ubuntu-20.04
+    ports:
+      - 9000:1433
+    environment:
+      - MSSQL_PID=Developer
+      - SA_PASSWORD=PhloERP@1234
+      - ACCEPT_EULA=Y
+    volumes:
+      - mssql-volume:/var/opt/mssql
+    networks:
+      - erpnetwork
+
+  erpapi:
+    container_name: erpapi
+    hostname: erpapi
+    image: erpapi
+    build: .
+    depends_on:
+      - erpmssql
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    ports:
+      - 9001:80
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    networks:
+      - erpnetwork
+
+  erpfrontend:
+    container_name: erpfrontend
+    hostname: erpfrontend
+    image: erpfrontend
+    build:
+     context: ./src/frontend
+     dockerfile: Dockerfile.prod
+    depends_on:
+      - erpmssql
+      - erpapi
+    ports:
+      - 9002:80
+      - 9003:3000
+    stdin_open: true
+    tty: true
+    networks:
+      - erpnetwork
+
+networks:
+  erpnetwork:
+
+volumes:
+  mssql-volume:
