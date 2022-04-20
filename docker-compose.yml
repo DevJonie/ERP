@@ -1,59 +1,71 @@
 version: '3.4'
 
 services:
-  erpmssql:
-    container_name: erpmssql
-    hostname: erpmssql
-    image: mcr.microsoft.com/mssql/server:2019-CU15-ubuntu-20.04
-    ports:
-      - 9000:1433
-    environment:
-      - MSSQL_PID=Developer
-      - SA_PASSWORD=PhloERP@1234
-      - ACCEPT_EULA=Y
-    volumes:
-      - mssql-volume:/var/opt/mssql
-    networks:
-      - erpnetwork
+    erpmssql:
+        container_name: erpmssql
+        hostname: erpmssql
+        image: mcr.microsoft.com/mssql/server:2019-CU15-ubuntu-20.04
+        ports:
+            - 8000:1433
+        environment:
+            - MSSQL_PID=Developer
+            - SA_PASSWORD=PhloERP@1234
+            - ACCEPT_EULA=Y
+        volumes:
+            - mssql-vol:/var/opt/mssql
+        networks:
+            - erpnetwork
+  
+    erprediscache:
+        container_name: erprediscache
+        hostname: erprediscache
+        image: redis:6.2.6-alpine
+        restart: always
+        ports:
+            - 8001:6379
+        command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+        volumes:
+            - redis-cache-vol:/data
+        networks:
+            - erpnetwork
+  
+    erpapi:
+        container_name: erpapi
+        hostname: erpapi
+        image: erpapi
+        build: .
+        depends_on:
+            - erpmssql
+            - erprediscache
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - ASPNETCORE_URLS=http://+:80
+        ports:
+            - 8002:80
+        volumes:
+            - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+            - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+        networks:
+            - erpnetwork
 
-  erpapi:
-    container_name: erpapi
-    hostname: erpapi
-    image: erpapi
-    build: .
-    depends_on:
-      - erpmssql
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:80
-    ports:
-      - 9001:80
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
-    networks:
-      - erpnetwork
-
-  erpfrontend:
-    container_name: erpfrontend
-    hostname: erpfrontend
-    image: erpfrontend
-    build:
-     context: ./src/frontend
-     dockerfile: Dockerfile.prod
-    depends_on:
-      - erpmssql
-      - erpapi
-    ports:
-      - 9002:80
-      - 9003:3000
-    stdin_open: true
-    tty: true
-    networks:
-      - erpnetwork
+    erpfrontend:
+        container_name: erpfrontend
+        hostname: erpfrontend
+        image: erpfrontend
+        build:
+            context: ./src/frontend
+            dockerfile: Dockerfile.prod
+        depends_on:
+            - erpapi
+        ports:
+            - 8003:80
+        networks:
+            - erpnetwork
 
 networks:
-  erpnetwork:
+    erpnetwork:
+        driver: bridge
 
 volumes:
-  mssql-volume:
+  mssql-vol:
+  redis-cache-vol:

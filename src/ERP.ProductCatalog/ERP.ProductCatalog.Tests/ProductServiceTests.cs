@@ -5,8 +5,6 @@ using ERP.ProductCatalog.Persistence;
 using ERP.ProductCatalog.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
@@ -19,7 +17,8 @@ public class ProductServiceTests
     public async Task GetAll_ShouldReturnEmptyIEnumerableOfProductDto_WhenDbHasNoItems()
     {
         //arrange
-        var productService = CreateProductService("ProdCatDb1");
+        var dbContext = CreateDbContext("ProdCatDb1");
+        var productService = CreateProductService(dbContext);
 
         //Act
         var products = await productService.GetAllAsync();
@@ -33,7 +32,8 @@ public class ProductServiceTests
     public async Task GetAll_ShouldReturnIEnumerableOfProductDto_WhenDbHasItems()
     {
         //arrange
-        var productService = CreateProductService("ProdCatDb2", GetFakeProducts());
+        var dbContext = CreateDbContext("ProdCatDb2", GetFakeProducts());
+        var productService = CreateProductService(dbContext);
 
         //Act
         var products = await productService.GetAllAsync();
@@ -47,7 +47,8 @@ public class ProductServiceTests
     public async Task GetById_ShouldReturn_ProductDto_WhenProductExists()
     {
         //arrange
-        var productService = CreateProductService("ProdCatDb3", GetFakeProducts());
+        var dbContext = CreateDbContext("ProdCatDb3", GetFakeProducts());
+        var productService = CreateProductService(dbContext);
 
         //Act
         var product = await productService.GetByIdAsync(2);
@@ -63,7 +64,8 @@ public class ProductServiceTests
     public async Task GetById_ShouldReturnNull_WhenProductDoesNotExist()
     {
         //arrange
-        var productService = CreateProductService("ProdCatDb4", GetFakeProducts());
+        var dbContext = CreateDbContext("ProdCatDb4", GetFakeProducts());
+        var productService = CreateProductService(dbContext);
 
         //Act
         var product = await productService.GetByIdAsync(10);
@@ -72,24 +74,28 @@ public class ProductServiceTests
         product.Should().BeNull();
     }
 
-    private static IProductService CreateProductService(string dbName, List<Product>? products = null)
+    private static IProductService CreateProductService(ProductCatalogDbContext dbContext)
+    {
+        var productService = new ProductService(dbContext);
+
+        return productService;
+    }
+    
+    private static ProductCatalogDbContext CreateDbContext(string dbName, List<Product>? products = null)
     {
         var options = new DbContextOptionsBuilder<ProductCatalogDbContext>()
-                    .UseInMemoryDatabase(databaseName: dbName)
-                    .Options;
+                            .UseInMemoryDatabase(databaseName: dbName)
+                            .Options;
 
         var context = new ProductCatalogDbContext(options);
+
         if (products is not null)
         {
             context.Products.AddRangeAsync(products);
             context.SaveChanges();
         }
 
-        IOptions<MemoryCacheOptions> option = new MemoryCacheOptions();
-        IMemoryCache _cache = new MemoryCache(option);
-        var productService = new ProductService(context, _cache);
-
-        return productService;
+        return context;
     }
 
     private static List<Product> GetFakeProducts() 
