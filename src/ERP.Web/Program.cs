@@ -12,12 +12,9 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: corsPolicy,
         policy =>
         {
-            policy
-            //.WithOrigins("http://erpfrontend", "http://erpfrontend:9002",
-            //    "http://localhost:9002", "http://localhost")
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader();
+            policy.AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader();
         });
 });
 
@@ -32,7 +29,14 @@ builder.Services
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-builder.Services.AddMemoryCache();
+builder.Services
+    .AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = builder.Configuration.GetConnectionString("RedisCache");
+        options.InstanceName = "ProductsCatalog";
+    });
+
+builder.Services.AddDistributedMemoryCache();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -49,12 +53,7 @@ var app = builder.Build();
 
 //app.UseHttpsRedirection();
 
-app.UseCors(options => 
-{
-    options.AllowAnyOrigin()
-    .AllowAnyHeader()
-    .AllowAnyMethod();
-});
+app.UseCors(corsPolicy);
 
 app.UseAuthorization();
 

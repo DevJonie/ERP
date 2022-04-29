@@ -15,6 +15,7 @@ public static class ConfigureServices
             options.UseSqlServer(conString));
 
         services.AddTransient<IProductService, ProductService>();
+        services.Decorate<IProductService, ProductServiceCahceDecorator>();
 
         return services;
     }
